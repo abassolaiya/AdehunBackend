@@ -1,6 +1,7 @@
 const News = require("../models/News");
 const { validationResult } = require("express-validator");
 const slugify = require("slugify");
+const cloudinary = require("../config/cloudinary"); // add this
 
 // @desc    Create news article
 // @route   POST /api/news
@@ -16,6 +17,14 @@ exports.createNews = async (req, res) => {
     const slug = slugify(req.body.title, { lower: true, strict: true });
     req.body.slug = slug;
 
+    // Handle image upload if file provided
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "agbaje-campaign/news",
+      });
+      req.body.imageUrl = result.secure_url;
+    }
+
     const news = new News(req.body);
     await news.save();
 
@@ -30,6 +39,61 @@ exports.createNews = async (req, res) => {
     });
   }
 };
+
+// @desc    Update news article
+// @route   PUT /api/news/:id
+// @access  Private/Admin
+exports.updateNews = async (req, res) => {
+  try {
+    let news = await News.findById(req.params.id);
+
+    if (!news) {
+      return res.status(404).json({
+        success: false,
+        message: "News article not found",
+      });
+    }
+
+    // Update slug if title changed
+    if (req.body.title && req.body.title !== news.title) {
+      req.body.slug = slugify(req.body.title, { lower: true, strict: true });
+    }
+
+    // Handle new image upload
+    if (req.file) {
+      // Optionally delete old image from Cloudinary
+      if (news.imageUrl) {
+        const publicId = news.imageUrl
+          .split("/")
+          .slice(-2)
+          .join("/")
+          .split(".")[0];
+        await cloudinary.uploader.destroy(publicId);
+      }
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "agbaje-campaign/news",
+      });
+      req.body.imageUrl = result.secure_url;
+    }
+
+    news = await News.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.json({
+      success: true,
+      data: news,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Keep other functions (getAllNews, getNewsBySlug, deleteNews, publishNews) unchanged
 
 // @desc    Get all news articles
 // @route   GET /api/news
@@ -90,42 +154,6 @@ exports.getNewsBySlug = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-// @desc    Update news article
-// @route   PUT /api/news/:id
-// @access  Private/Admin
-exports.updateNews = async (req, res) => {
-  try {
-    let news = await News.findById(req.params.id);
-
-    if (!news) {
-      return res.status(404).json({
-        success: false,
-        message: "News article not found",
-      });
-    }
-
-    // Update slug if title changed
-    if (req.body.title && req.body.title !== news.title) {
-      req.body.slug = slugify(req.body.title, { lower: true, strict: true });
-    }
-
-    news = await News.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-
-    res.json({
-      success: true,
-      data: news,
-    });
-  } catch (error) {
-    res.status(400).json({
       success: false,
       message: error.message,
     });

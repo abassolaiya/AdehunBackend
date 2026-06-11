@@ -7,7 +7,6 @@ const newsSchema = new mongoose.Schema({
   },
   slug: {
     type: String,
-    required: true,
     unique: true,
   },
   excerpt: String,
@@ -15,14 +14,16 @@ const newsSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  featuredImage: String,
+  imageUrl: {
+    // new field
+    type: String,
+    default: "",
+  },
   category: {
     type: String,
     enum: ["news", "press-release", "statement", "event", "speech"],
     default: "news",
   },
-  author: String,
-  tags: [String],
   published: {
     type: Boolean,
     default: false,
