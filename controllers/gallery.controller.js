@@ -114,7 +114,6 @@ exports.updateImage = async (req, res) => {
       new: true,
       runValidators: true,
     });
-
     if (!image) {
       return res.status(404).json({
         success: false,
